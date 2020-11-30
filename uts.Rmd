@@ -1,0 +1,90 @@
+---
+title: "uts dmkm"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+library(rpart)
+library(rpart.plot)
+library(rattle)
+library(caret)
+library(mltest)
+```
+
+## Klasifikasi Jenis Tumor
+Langkah - Langkah :
+1. Input Data
+```{r}
+data_lym <- read.csv("D:/POLSTAT STIS/uts dmkm/r/dataset/lymphography.data", header=FALSE)
+head(data_lym)
+```
+
+2. Data Preprocessing
+```{r}
+str(data_lym)
+```
+Ini merupakan dataset limfografi yang terdiri dari 18 atribut. Tipe data dari 18 variabel adalah integer
+
+Cek jumlah missing value
+```{r}
+sapply(data_lym, function(x) sum(is.na(x)))
+```
+Pada output terlihat tidak ada missing value
+
+Membuat subset variabel yang tidak perlu 
+```{r}
+data_lym <- data_lym[,-c(10,11,19)]
+```
+
+Karena semua variabel memiliki tipe integer maka kita ubah tipe variabel menjadi tipe faktor
+```{r}
+for(i in names(data_lym)){
+  data_lym[,i]= as.factor(data_lym[,i])
+}
+str(data_lym)
+```
+3. Split Data
+Memecah data menjadi data training (80% dari data awal) dan data test (20% dari data awal)
+
+```{r}
+set.seed(1234)
+sampel <- sample(2,nrow(data_lym),replace = T, prob = c(0.8,0.2))
+trainingdat <- data_lym[sampel==1, ]
+testingdat <- data_lym[sampel==2, ]
+print(paste("Jumlah train data :", nrow(trainingdat)))
+print(paste("Jumlah test data :", nrow(testingdat)))
+```
+Didapat jumlah train data adalah 122 dan jumlah test data adalah 26
+
+4. Membuat Model
+Mebuat model ID3 dengan keputusan adalah jenis tumor yaitu temuan normal, metastasis, limfa ganas dan fibrosis
+```{r}
+id3_model <- rpart(V1 ~ ., data = trainingdat, 
+                     control = rpart.control(minsplit = 2), method = 'class')
+id3_model
+rpart.plot(id3_model)
+```
+Ouput :
+Didapat decision tree dengan root V14 (perubahan simpul)
+
+```{r}
+fancyRpartPlot(id3_model)
+```
+
+5. Evaluasi Model
+```{r}
+id3_pred  <- predict(id3_model, testingdat[,1:16], type = "class")
+confusionMatrix(id3_pred, testingdat$V1)
+```
+Accuracy, secara keseluruhan, seberapa sering pengklasifikasian dilakukan dengan benar
+Sensitivity/Recall/True Positive Rate, jika sebenarnya yes, seberapa sering akan diprediksi yes?
+Specificity/True Negative Rate, jika sebenarnya no, seberapa sering akan diprediksi no?
+
+```{r}
+true_value<- as.factor(testingdat$V1)
+CM_id3    <- ml_test(id3_pred, true_value, output.as.table = TRUE)
+Presisi   <- CM_id3$precision
+Presisi
+F1_score  <- CM_id3$F1
+F1_score
+```
